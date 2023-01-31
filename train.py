@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Dec  4 13:20:29 2018
-
 @author: edward
 """
 import matplotlib
@@ -13,16 +12,32 @@ from datetime import datetime
 import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
+import os
 
-
-from differential_neural_computer import DNC, Params
+from dnc import DNC
 from create_ntm_data import train_generator
+
+
+class Params:
+    def __init__(self):
+        self.input_size = 8
+        self.c_out_size = 64
+        self.l_out_size = self.input_size-1
+        self.mem_size = 16
+        self.memory_n = 32    
+        self.batch_size = 16
+        self.num_read_heads = 3
+        self.seq_length = 20
+        
+        self.l_in_size = self.c_out_size + self.num_read_heads * self.mem_size
+        self.c_in_size = self.input_size + self.num_read_heads * self.mem_size 
+
 
 params = Params()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 data = train_generator(num_bits=params.input_size-1, sequence_length=params.seq_length, batch_size=params.batch_size)
 
-dnc = DNC(params).to(device)
+dnc = DNC(params.input_size, params.c_out_size, params.l_out_size, params.mem_size, params.memory_n, params.batch_size, params.num_read_heads).to(device)
 
 
 loss_fn = nn.BCELoss()
@@ -60,7 +75,8 @@ for epoch in range(1000):
     target = batch[:,:, :-1].transpose(0,1)[0].cpu().numpy()
     
 
-    
+    if not os.path.exists('examples'):
+        os.makedirs('examples')
     
     print(datetime.now(), epoch, sum(losses)/len(losses))
 
@@ -68,7 +84,7 @@ for epoch in range(1000):
     plt.imshow(target)
     plt.subplot(1,2,2)
     plt.imshow(pred)
-    plt.savefig('examples/result_time{}_epoch{:003}.jpg'.format(datetime.now(), epoch))
+    plt.savefig('examples/result_time{}_epoch{:003}.jpg'.format(str(datetime.now()).replace(':', '-'), epoch))
     plt.close()
 
 filename = 'models/model{}.pth.tar'.format(datetime.now())
